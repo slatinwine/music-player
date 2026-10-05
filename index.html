@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>音乐</title>
+<style>
+:root{
+  --tint:#45403a;
+  --tint-contrast:#f6f4f0;
+  --bg:#d8d4cd;
+  --card:rgba(231,227,220,.92);
+  --text:#282522;
+  --text2:#6e6961;
+  --text3:#b3ada4;
+  --track:rgba(40,37,34,.15);
+  --btn-hover:rgba(40,37,34,.07);
+  --glass-border:rgba(40,37,34,.10);
+  --shadow:0 24px 60px rgba(56,50,42,.16),0 4px 14px rgba(56,50,42,.08);
+  --toast-bg:rgba(52,49,45,.93);
+  --toast-text:#f2efe9;
+  --glow:.26;
+  --noise:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.055'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --tint:#d9d4cb;
+    --tint-contrast:#2b2926;
+    --bg:#262523;
+    --card:rgba(58,55,52,.9);
+    --text:#ece8e1;
+    --text2:#a29c93;
+    --text3:#5c5751;
+    --track:rgba(236,232,225,.16);
+    --btn-hover:rgba(236,232,225,.09);
+    --glass-border:rgba(236,232,225,.08);
+    --shadow:0 24px 60px rgba(0,0,0,.5),0 4px 14px rgba(0,0,0,.3);
+    --toast-bg:rgba(226,222,215,.94);
+    --toast-text:#2b2926;
+    --glow:.18;
+  }
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);min-height:100dvh;
+  transition:background .4s,color .4s;
+  overflow-x:hidden;
+}
+/* 混凝土骨料噪点 + 单侧采光/背光面 */
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:var(--noise)}
+body::after{
+  content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(900px 620px at 18% -8%, rgba(255,255,255,.5), transparent 62%),
+    radial-gradient(1100px 720px at 108% 112%, rgba(84,76,66,.22), transparent 60%);
+}
+@media (prefers-color-scheme: dark){
+  body::before{opacity:.7}
+  body::after{background:
+    radial-gradient(900px 620px at 18% -8%, rgba(255,255,255,.05), transparent 62%),
+    radial-gradient(1100px 720px at 108% 112%, rgba(0,0,0,.42), transparent 60%)}
+}
+
+.wrap{max-width:1060px;margin:0 auto;padding:0 22px 44px}
+.page-head{padding:30px 8px 10px}
+.page-head h1{font-size:34px;font-weight:700;letter-spacing:.04em}
+
+.app{display:grid;grid-template-columns:400px 1fr;gap:20px;align-items:start}
+
+/* 混凝土板:噪点面 + 一道板缝线 */
+.glass{
+  background-color:var(--card);
+  background-image:var(--noise),linear-gradient(rgba(0,0,0,.045),rgba(0,0,0,.045));
+  background-size:180px 180px,100% 1px;
+  background-position:0 0,0 118px;
+  background-repeat:repeat,no-repeat;
+  backdrop-filter:blur(24px) saturate(120%);
+  -webkit-backdrop-filter:blur(24px) saturate(120%);
+  border:1px solid var(--glass-border);
+  box-shadow:var(--shadow);
+}
+
+/* ============ 播放器 ============ */
+.player-card{
+  border-radius:18px;padding:26px 24px 20px;
+  display:flex;flex-direction:column;align-items:center;
+  position:sticky;top:20px;
+}
+.cover-wrap{position:relative;width:min(100%,296px);margin:4px auto 20px}
+.cover-glow{position:absolute;inset:-6%;border-radius:24px;filter:blur(46px);opacity:0;transition:opacity .6s;z-index:0}
+.cover{
+  position:relative;width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;z-index:1;
+  background:#cfcac2;box-shadow:0 18px 44px rgba(50,45,38,.28);
+  transition:transform .45s cubic-bezier(.22,1.2,.36,1);
+}
+@media (prefers-color-scheme: dark){
+  .cover{background:#3b3936;box-shadow:0 18px 44px rgba(0,0,0,.5)}
+}
+.cover.shrunk{transform:scale(.88)}
+.cover img{width:100%;height:100%;object-fit:cover;display:block}
+.cover-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.cover-ph svg{width:32%;fill:rgba(255,255,255,.9)}
+
+.track-info{text-align:center;width:100%;padding:0 6px}
+.track-info h1{
+  font-size:20px;font-weight:700;letter-spacing:.02em;line-height:1.3;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  word-break:break-all;
+}
+.track-info p{font-size:15px;color:var(--text2);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.progress-row{display:flex;align-items:center;gap:10px;width:100%;margin:20px 0 2px}
+.time{font-size:12px;font-variant-numeric:tabular-nums;color:var(--text2);min-width:40px;flex:none}
+.time.right{text-align:right}
+
+/* 滑块(进度/音量通用) */
+.slider{position:relative;flex:1;height:26px;cursor:pointer;touch-action:none}
+.slider::before{content:'';position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:6px;border-radius:2px;background:var(--track);transition:height .18s}
+.slider .s-fill{position:absolute;left:0;top:50%;transform:translateY(-50%);width:0%;height:6px;border-radius:2px;background:var(--tint);transition:height .18s}
+.slider .s-knob{
+  position:absolute;left:0%;top:50%;transform:translate(-50%,-50%);
+  width:16px;height:16px;border-radius:50%;background:#f7f4ee;
+  box-shadow:0 1px 4px rgba(40,36,30,.35),0 0 0 .5px rgba(40,36,30,.12);
+  transition:width .18s,height .18s;pointer-events:none;
+}
+@media (prefers-color-scheme: dark){
+  .slider .s-knob{background:#ddd8d0}
+}
+.slider.thin::before,.slider.thin .s-fill{height:4px;border-radius:2px}
+.slider.thin .s-knob{width:13px;height:13px}
+.slider.dragging::before{height:9px}
+.slider.dragging .s-fill{height:9px}
+.slider.dragging .s-knob{width:21px;height:21px}
+
+.controls{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px}
+.icon-btn{
+  width:46px;height:46px;display:flex;align-items:center;justify-content:center;
+  background:none;border:none;color:var(--text);border-radius:50%;cursor:pointer;
+  transition:transform .12s,background .2s,opacity .2s;position:relative;flex:none;
+}
+.icon-btn:hover{background:var(--btn-hover)}
+.icon-btn:active{transform:scale(.86)}
+.icon-btn svg{width:22px;height:22px;fill:currentColor}
+.icon-btn.small{width:38px;height:38px;color:var(--text2)}
+.icon-btn.small svg{width:19px;height:19px}
+.icon-btn.dim{opacity:.4}
+.one-badge{position:absolute;top:5px;right:5px;font-size:9px;font-weight:800;color:var(--tint);font-style:normal}
+.play-btn{
+  width:66px;height:66px;border-radius:50%;border:none;background:var(--tint);color:var(--tint-contrast);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0 8px;
+  box-shadow:0 12px 26px rgba(50,45,38,.32);transition:transform .15s,filter .2s;flex:none;
+}
+@media (prefers-color-scheme: dark){
+  .play-btn{box-shadow:0 12px 26px rgba(0,0,0,.45)}
+}
+.play-btn:hover{filter:brightness(1.05)}
+.play-btn:active{transform:scale(.9)}
+.play-btn svg{width:30px;height:30px;fill:currentColor}
+
+/* ============ 播放列表 ============ */
+.list-card{border-radius:18px;padding:18px 14px 12px}
+.list-head{display:flex;align-items:center;gap:10px;padding:4px 10px 14px}
+.list-head h2{font-size:22px;font-weight:700;letter-spacing:.03em}
+.badge{font-size:12px;color:var(--text2);background:var(--track);padding:3px 10px;border-radius:5px;font-weight:600}
+.clear-btn{
+  margin-left:auto;border:none;background:none;color:var(--tint);font-size:14px;font-weight:500;
+  cursor:pointer;border-radius:9px;padding:6px 12px;font-family:inherit;transition:background .2s,color .2s;
+}
+.clear-btn:hover{background:var(--btn-hover)}
+.clear-btn.warn{color:#9c4a38;font-weight:700}
+@media (prefers-color-scheme: dark){.clear-btn.warn{color:#c96a52}}
+
+.import-btn{
+  width:100%;height:48px;border:none;border-radius:10px;background:var(--tint);color:var(--tint-contrast);
+  font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  font-family:inherit;letter-spacing:.06em;transition:transform .12s,filter .2s;margin:2px 0 12px;
+}
+.import-btn svg{width:18px;height:18px;fill:currentColor}
+.import-btn:hover{filter:brightness(1.08)}
+.import-btn:active{transform:scale(.98)}
+
+.empty{text-align:center;padding:26px 14px 30px;color:var(--text2);display:none}
+.empty svg{width:50px;height:50px;fill:var(--text3);margin-bottom:10px}
+.empty p{font-size:14px;line-height:1.7}
+
+ul.playlist{list-style:none;overflow-y:auto;padding:0 4px 4px;scrollbar-width:thin;scrollbar-color:var(--text3) transparent}
+ul.playlist::-webkit-scrollbar{width:5px}
+ul.playlist::-webkit-scrollbar-thumb{background:var(--text3);border-radius:3px}
+@media (min-width:861px){
+  ul.playlist{max-height:calc(100dvh - 345px);min-height:300px}
+}
+
+.pl-item{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:background .15s}
+.pl-item:hover{background:var(--btn-hover)}
+.pl-item.current{background:rgba(40,37,34,.08)}
+@media (prefers-color-scheme: dark){.pl-item.current{background:rgba(236,232,225,.08)}}
+.pl-cover{width:44px;height:44px;border-radius:5px;overflow:hidden;flex:none;box-shadow:0 1px 4px rgba(40,36,30,.22)}
+.pl-cover img,.pl-cover>div{width:100%;height:100%;object-fit:cover}
+.pl-cover>div{display:flex;align-items:center;justify-content:center}
+.pl-cover svg{width:19px;height:19px;fill:rgba(255,255,255,.88)}
+.pl-meta{flex:1;min-width:0}
+.pl-title{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-item.current .pl-title{color:var(--tint)}
+.pl-artist{font-size:12.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.pl-dur{font-size:13px;color:var(--text2);font-variant-numeric:tabular-nums;flex:none}
+.pl-eq{display:none;align-items:flex-end;gap:2px;height:15px;width:15px;flex:none}
+.pl-item.current.playing .pl-eq{display:flex}
+.pl-item.current.playing .pl-dur{display:none}
+.pl-eq i{flex:1;background:var(--tint);border-radius:1px;animation:eq 1s ease-in-out infinite}
+.pl-eq i:nth-child(2){animation-delay:.28s}
+.pl-eq i:nth-child(3){animation-delay:.55s}
+.pl-item.current.playing.paused-eq .pl-eq i{animation-play-state:paused}
+@keyframes eq{0%,100%{height:4px}50%{height:14px}}
+.pl-x{
+  width:30px;height:30px;border:none;background:none;color:var(--text2);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:.15s;flex:none;
+}
+.pl-item:hover .pl-x{opacity:1}
+.pl-x:hover{background:var(--btn-hover);color:var(--text)}
+.pl-x svg{width:14px;height:14px;fill:currentColor}
+@media (hover:none){.pl-x{opacity:.55;width:34px;height:34px}}
+
+/* ============ 浮层 ============ */
+.drop-overlay{
+  position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+  background:rgba(60,55,48,.18);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.drop-overlay.on{opacity:1}
+.drop-box{
+  border:2.5px dashed var(--tint);color:var(--tint);border-radius:16px;padding:44px 64px;
+  font-size:19px;font-weight:700;letter-spacing:.06em;background:var(--card);box-shadow:var(--shadow);
+}
+.toast{
+  position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));z-index:99;
+  transform:translateX(-50%) translateY(16px);
+  background:var(--toast-bg);color:var(--toast-text);
+  padding:11px 22px;border-radius:10px;font-size:14px;font-weight:600;letter-spacing:.03em;
+  box-shadow:0 10px 30px rgba(40,36,30,.3);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;max-width:86vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ============ 手机:迷你播放条 + 全屏播放页 ============ */
+.sheet-head{display:none}
+.mini-bar{
+  position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));
+  z-index:70;border-radius:14px;padding:8px 8px 8px 10px;
+  display:none;align-items:center;gap:4px;
+  transform:translateY(140px);transition:transform .4s cubic-bezier(.32,.72,.35,1);
+}
+.mini-bar.show{transform:translateY(0)}
+.mini-info{display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:3px 6px 3px 2px;border-radius:10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mini-info:active{background:var(--btn-hover)}
+.mini-cover{width:40px;height:40px;border-radius:6px;overflow:hidden;flex:none;box-shadow:0 1px 4px rgba(40,36,30,.25)}
+.mini-cover img,.mini-cover>div{width:100%;height:100%;object-fit:cover}
+.mini-cover>div{display:flex;align-items:center;justify-content:center}
+.mini-cover svg{width:17px;height:17px;fill:rgba(255,255,255,.88)}
+.mini-meta{flex:1;min-width:0}
+.mini-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-artist{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+body.sheet-open{overflow:hidden}
+
+/* ============ 响应式 ============ */
+@media (max-width:860px){
+  .wrap{padding:0 14px calc(96px + env(safe-area-inset-bottom))}
+  .page-head{padding:20px 6px 6px}
+  .page-head h1{font-size:30px}
+  .app{grid-template-columns:1fr;gap:16px}
+  ul.playlist{max-height:none}
+
+  /* 播放器卡片变成全屏页,默认藏在屏幕下方,加 .open 滑入 */
+  .player-card{
+    position:fixed;inset:0;z-index:80;border-radius:0;top:0;
+    padding:calc(8px + env(safe-area-inset-top)) 24px calc(16px + env(safe-area-inset-bottom));
+    transform:translateY(103%);
+    transition:transform .45s cubic-bezier(.32,.72,.35,1);
+  }
+  .player-card.open{transform:translateY(0)}
+  .player-card.dragging{transition:none}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;width:100%;padding:4px 2px 0;user-select:none;touch-action:none}
+  .sheet-label{font-size:13px;font-weight:600;color:var(--text2);letter-spacing:.14em}
+  .cover-wrap{width:min(72vw,300px);margin:3vh auto 20px;user-select:none;touch-action:none}
+  .track-info h1{font-size:24px}
+  .track-info p{font-size:16px}
+  .progress-row{margin-top:auto;padding-top:22px}
+  .controls{margin:16px 0 6px}
+  .mini-bar{display:flex}
+}
+@media (max-width:380px){
+  .player-card{padding:18px 14px 12px}
+  .play-btn{width:58px;height:58px}
+  .icon-btn{width:42px;height:42px}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="page-head"><h1>音乐</h1></header>
+  <div class="app">
+
+    <!-- 播放器(桌面=左栏卡片;手机=全屏播放页,由迷你条唤起) -->
+    <section class="player-card glass" id="playerCard" aria-label="播放器">
+      <div class="sheet-head" id="sheetHead">
+        <button class="icon-btn small" id="collapseBtn" title="收起" aria-label="收起播放页"></button>
+        <span class="sheet-label">正在播放</span>
+        <span style="width:38px;flex:none"></span>
+      </div>
+      <div class="cover-wrap">
+        <div class="cover-glow" id="coverGlow"></div>
+        <div class="cover" id="cover"></div>
+      </div>
+
+      <div class="track-info">
+        <h1 id="trackTitle">未在播放</h1>
+        <p id="trackArtist">导入音乐开始使用</p>
+      </div>
+
+      <div class="progress-row">
+        <span class="time" id="curTime">0:00</span>
+        <div class="slider" id="progressSlider"><div class="s-fill"></div><div class="s-knob"></div></div>
+        <span class="time right" id="durTime">0:00</span>
+      </div>
+
+      <div class="controls">
+        <button class="icon-btn small" id="modeBtn" title="列表循环" aria-label="播放模式"></button>
+        <button class="icon-btn" id="prevBtn" title="上一首" aria-label="上一首"></button>
+        <button class="play-btn" id="playBtn" title="播放/暂停" aria-label="播放">
+          <svg id="playIco" viewBox="0 0 24 24" style="display:none;margin-left:3px"><path d="M8 5.14v13.72c0 .82.9 1.32 1.6.89l10.8-6.86a1.05 1.05 0 0 0 0-1.78L9.6 4.25c-.7-.43-1.6.07-1.6.89z"/></svg>
+          <svg id="pauseIco" viewBox="0 0 24 24"><rect x="6.4" y="5" width="4" height="14" rx="1.5"/><rect x="13.6" y="5" width="4" height="14" rx="1.5"/></svg>
+        </button>
+        <button class="icon-btn" id="nextBtn" title="下一首" aria-label="下一首"></button>
+        <span style="width:38px;flex:none"></span>
+      </div>
+    </section>
+
+    <!-- 播放列表 -->
+    <section class="list-card glass" aria-label="播放列表">
+      <div class="list-head">
+        <h2>播放列表</h2>
+        <span class="badge" id="countBadge"></span>
+        <button class="clear-btn" id="clearBtn" style="display:none">清空</button>
+      </div>
+      <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.wma,.ape,.aiff" multiple hidden>
+      <button class="import-btn" id="importBtn">
+        <svg viewBox="0 0 24 24"><path d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1z"/></svg>
+        导入音乐
+      </button>
+      <div class="empty" id="emptyState">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0-9 9v6.5A2.5 2.5 0 0 0 5.5 21H7a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H5v-1a7 7 0 0 1 14 0v1h-2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h1.5a2.5 2.5 0 0 0 2.5-2.5V12a9 9 0 0 0-9-9z"/></svg>
+        <p>还没有音乐<br>点击上方按钮导入本地音乐,或直接把音频文件拖进页面</p>
+      </div>
+      <ul class="playlist" id="playlist"></ul>
+    </section>
+
+  </div>
+</div>
+
+<!-- 手机端迷你播放条:点击展开全屏播放页 -->
+<div class="mini-bar glass" id="miniBar">
+  <div class="mini-info" id="miniInfo" title="展开播放页">
+    <div class="mini-cover" id="miniCover"></div>
+    <div class="mini-meta">
+      <div class="mini-title" id="miniTitle"></div>
+      <div class="mini-artist" id="miniArtist"></div>
+    </div>
+  </div>
+  <button class="icon-btn" id="miniPlay" aria-label="播放"></button>
+  <button class="icon-btn" id="miniNext" aria-label="下一首"></button>
+</div>
+
+<div class="drop-overlay" id="dropOverlay"><div class="drop-box">松开即可添加到播放列表</div></div>
+<div class="toast" id="toast"></div>
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const audio=$('#audio');
+const els={
+  card:$('#playerCard'),sheetHead:$('#sheetHead'),collapse:$('#collapseBtn'),
+  title:$('#trackTitle'),artist:$('#trackArtist'),cover:$('#cover'),glow:$('#coverGlow'),
+  cur:$('#curTime'),dur:$('#durTime'),play:$('#playBtn'),playIco:$('#playIco'),pauseIco:$('#pauseIco'),
+  prev:$('#prevBtn'),next:$('#nextBtn'),mode:$('#modeBtn'),
+  list:$('#playlist'),count:$('#countBadge'),clear:$('#clearBtn'),empty:$('#emptyState'),
+  fileInput:$('#fileInput'),importBtn:$('#importBtn'),toast:$('#toast'),drop:$('#dropOverlay'),
+  miniBar:$('#miniBar'),miniInfo:$('#miniInfo'),miniCover:$('#miniCover'),
+  miniTitle:$('#miniTitle'),miniArtist:$('#miniArtist'),miniPlay:$('#miniPlay'),miniNext:$('#miniNext'),
+};
+
+const GRADS=[
+  ['#bcb6ac','#938d83'],['#ccc6bc','#a49d92'],['#a29c93','#7a746b'],['#d5cfc5','#afa89c'],
+  ['#97918a','#6f6a62'],['#c4beb4','#9c968b'],['#aaa49a','#827c72'],['#cfc9bf','#a7a094'],
+  ['#9d978d','#746f66'],['#c8c2b8','#a09a8e'],
+];
+const state={tracks:[],current:-1,playing:false,mode:'loop',seeking:false};
+
+/* ---------- 图标 ---------- */
+const NOTE='<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
+const ICONS={
+  prev:'<svg viewBox="0 0 24 24"><path d="M6 6h2.2v12H6zM17.5 6.2v11.6c0 .9-1 1.44-1.74.94l-8-5.8a1.14 1.14 0 0 1 0-1.88l8-5.8c.74-.5 1.74.04 1.74.94z"/></svg>',
+  next:'<svg viewBox="0 0 24 24"><path d="M15.8 6h2.2v12h-2.2zM6.5 6.2v11.6c0 .9 1 1.44 1.74.94l8-5.8a1.14 1.14 0 0 0 0-1.88l-8-5.8C7.5 4.76 6.5 5.3 6.5 6.2z"/></svg>',
+  order:'<svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h10v2H4z"/></svg>',
+  loop:'<svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>',
+  one:'<svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>',
+  x:'<svg viewBox="0 0 24 24"><path d="M18.3 5.7a1 1 0 0 0-1.4 0L12 10.6 7.1 5.7a1 1 0 1 0-1.4 1.4l4.9 4.9-4.9 4.9a1 1 0 1 0 1.4 1.4l4.9-4.9 4.9 4.9a1 1 0 0 0 1.4-1.4l-4.9-4.9 4.9-4.9a1 1 0 0 0 0-1.4z"/></svg>',
+  chevD:'<svg viewBox="0 0 24 24"><path d="M12 15.6 5.6 9.2a1 1 0 1 1 1.4-1.4l5 5 5-5a1 1 0 1 1 1.4 1.4z"/></svg>',
+};
+const SVG_PLAY='<svg viewBox="0 0 24 24" style="margin-left:3px"><path d="M8 5.14v13.72c0 .82.9 1.32 1.6.89l10.8-6.86a1.05 1.05 0 0 0 0-1.78L9.6 4.25c-.7-.43-1.6.07-1.6.89z"/></svg>';
+const SVG_PAUSE='<svg viewBox="0 0 24 24"><rect x="6.4" y="5" width="4" height="14" rx="1.5"/><rect x="13.6" y="5" width="4" height="14" rx="1.5"/></svg>';
+
+/* ---------- 工具 ---------- */
+function fmt(s){
+  if(!isFinite(s)||s<0)return'0:00';
+  const m=Math.floor(s/60),ss=Math.floor(s%60);
+  return m+':'+String(ss).padStart(2,'0');
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return h}
+let toastTimer=null;
+function toast(msg){
+  els.toast.textContent=msg;els.toast.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>els.toast.classList.remove('show'),2000);
+}
+function nameFallback(name){
+  let base=name.replace(/\.[^.]+$/,'').replace(/[_]+/g,' ').trim();
+  const m=base.match(/^(.{1,40}?)\s+[-–—]\s+(.+)$/);
+  if(m){
+    let artist=m[1].trim(),title=m[2].trim();
+    if(/^\d{1,3}$/.test(artist))return{artist:'未知艺术家',title};
+    return{artist,title};
+  }
+  return{artist:'未知艺术家',title:base};
+}
+/* 后台预读时长,让列表里每首歌都显示总时长 */
+function probeDuration(t){
+  if(t.duration!=null||t.probing)return;
+  t.probing=true;
+  const a=new Audio();
+  a.preload='metadata';
+  a.onloadedmetadata=()=>{
+    t.duration=a.duration;
+    a.removeAttribute('src');a.load();
+    renderPlaylist();
+  };
+  a.onerror=()=>{a.removeAttribute('src');a.load();};
+  a.src=t.url;
+}
+
+/* ---------- 滑块组件 ---------- */
+function makeSlider(el,{onInput,onCommit}){
+  const fill=el.querySelector('.s-fill'),knob=el.querySelector('.s-knob');
+  let dragging=false;
+  const pct=e=>{
+    const r=el.getBoundingClientRect();
+    return Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+  };
+  const paint=v=>{fill.style.width=(v*100)+'%';knob.style.left=(v*100)+'%';};
+  el.addEventListener('pointerdown',e=>{
+    dragging=true;el.classList.add('dragging');
+    try{el.setPointerCapture(e.pointerId)}catch(_){}
+    const v=pct(e);paint(v);onInput&&onInput(v);
+  });
+  el.addEventListener('pointermove',e=>{if(dragging){const v=pct(e);paint(v);onInput&&onInput(v);}});
+  const end=e=>{
+    if(!dragging)return;
+    dragging=false;el.classList.remove('dragging');
+    onCommit&&onCommit(pct(e));
+  };
+  el.addEventListener('pointerup',end);
+  el.addEventListener('pointercancel',end);
+  return{set(v){if(!dragging)paint(v);}};
+}
+
+/* ---------- ID3 标签解析(MP3) ---------- */
+function syncsafe(b,p){return((b[p]&0x7f)<<21)|((b[p+1]&0x7f)<<14)|((b[p+2]&0x7f)<<7)|(b[p+3]&0x7f)}
+function latin(b,p,l){let s='';for(let i=0;i<l;i++)s+=String.fromCharCode(b[p+i]);return s}
+function decodeText(d){
+  try{
+    const enc=d[0];let td;
+    if(enc===0)td=new TextDecoder('windows-1252');
+    else if(enc===1)td=new TextDecoder('utf-16');
+    else if(enc===2)td=new TextDecoder('utf-16be');
+    else td=new TextDecoder('utf-8');
+    let s=td.decode(d.subarray(1)).replace(/\u0000+$/g,'').replace(/^\uFEFF/,'').trim();
+    return s||null;
+  }catch(_){return null}
+}
+function decodeAPIC(d,isV22){
+  try{
+    const enc=d[0];let p=1,mime;
+    if(isV22){
+      mime=latin(d,1,3).toLowerCase().replace('jpg','jpeg');p=4;
+    }else{
+      let e=p;while(e<d.length&&d[e]!==0)e++;
+      mime=latin(d,p,e-p).toLowerCase();p=e+1;
+    }
+    p+=1; // picture type
+    if(enc===1||enc===2){while(p+1<d.length&&!(d[p]===0&&d[p+1]===0))p+=2;p+=2;}
+    else{while(p<d.length&&d[p]!==0)p++;p+=1;}
+    const img=d.slice(p);
+    if(img.length<120)return null;
+    return URL.createObjectURL(new Blob([img],{type:mime.startsWith('image/')?mime:'image/jpeg'}));
+  }catch(_){return null}
+}
+async function parseID3(file){
+  const out={title:null,artist:null,cover:null};
+  try{
+    const head=new Uint8Array(await file.slice(0,10).arrayBuffer());
+    if(head[0]!==0x49||head[1]!==0x44||head[2]!==0x33)return out; // 无 ID3
+    const ver=head[3],flags=head[5];
+    const size=syncsafe(head,6);
+    if(size<=0||size>3*1024*1024)return out;
+    const buf=new Uint8Array(await file.slice(10,10+size).arrayBuffer());
+    let pos=0;
+    if(flags&0x40){ // 扩展头
+      pos+= ver===4 ? syncsafe(buf,0) : (buf[0]<<24|buf[1]<<16|buf[2]<<8|buf[3])+4;
+    }
+    const hlen=ver===2?6:10;
+    while(pos+hlen<=buf.length){
+      let id,fsize;
+      if(ver===2){id=latin(buf,pos,3);fsize=(buf[pos+3]<<16)|(buf[pos+4]<<8)|buf[pos+5];}
+      else{
+        id=latin(buf,pos,4);
+        fsize= ver===4 ? syncsafe(buf,pos+4) : (buf[pos+4]<<24|buf[pos+5]<<16|buf[pos+6]<<8|buf[pos+7]);
+        if(id.charCodeAt(0)<65)break;
+      }
+      if(!/^[A-Z0-9]+$/.test(id)||fsize<=0||pos+hlen+fsize>buf.length)break;
+      let data=buf.subarray(pos+hlen,pos+hlen+fsize);
+      if(ver===4&&(buf[pos+9]&1))data=data.subarray(4); // data length indicator
+      if(id==='TIT2'||id==='TT2')out.title=out.title||decodeText(data);
+      else if(id==='TPE1'||id==='TP1')out.artist=out.artist||decodeText(data);
+      else if((id==='APIC'||id==='PIC')&&!out.cover)out.cover=decodeAPIC(data,id==='PIC');
+      pos+=hlen+fsize;
+      if(out.title&&out.artist&&out.cover)break;
+    }
+  }catch(_){}
+  return out;
+}
+
+/* ---------- 渲染 ---------- */
+function coverHTML(t,small){
+  if(t&&t.coverUrl)return`<img src="${t.coverUrl}" alt="" draggable="false">`;
+  const[a,b]=t?GRADS[t.grad]:['#c6c1b8','#9d978d'];
+  return`<div style="background:linear-gradient(135deg,${a},${b})">${small?'':NOTE}</div>`;
+}
+function updateCoverUI(){
+  const t=state.tracks[state.current]||null;
+  els.cover.innerHTML=coverHTML(t);
+  if(t){
+    const[a,b]=GRADS[t.grad];
+    els.glow.style.background=`linear-gradient(135deg,${a},${b})`;
+    els.glow.style.opacity='var(--glow)';
+  }else els.glow.style.opacity='0';
+}
+function renderPlaylist(){
+  const n=state.tracks.length;
+  els.count.textContent=n?`${n} 首`:'';
+  els.empty.style.display=n?'none':'block';
+  els.clear.style.display=n?'':'none';
+  els.list.innerHTML=n?state.tracks.map((t,i)=>{
+    const cur=i===state.current;
+    return`<li class="pl-item${cur?' current':''}${cur&&state.playing?' playing':''}" data-idx="${i}">
+      <div class="pl-cover">${coverHTML(t,true)}</div>
+      <div class="pl-meta"><div class="pl-title">${esc(t.title)}</div><div class="pl-artist">${esc(t.artist)}</div></div>
+      <div class="pl-eq"><i></i><i></i><i></i></div>
+      <div class="pl-dur">${t.duration!=null?fmt(t.duration):'–:––'}</div>
+      <button class="pl-x" data-rm="${i}" title="移除" aria-label="移除">${ICONS.x}</button>
+    </li>`;
+  }).join(''):'';
+}
+function syncPlaylistCurrent(){
+  els.list.querySelectorAll('.pl-item').forEach((el,i)=>{
+    el.classList.toggle('current',i===state.current);
+    el.classList.toggle('playing',i===state.current&&state.playing);
+  });
+}
+function syncPlayUI(){
+  els.playIco.style.display=state.playing?'none':'';
+  els.pauseIco.style.display=state.playing?'':'none';
+  els.play.setAttribute('aria-label',state.playing?'暂停':'播放');
+  els.cover.classList.toggle('shrunk',!state.playing&&state.current>=0);
+  els.list.querySelector('.pl-item.current')?.classList.toggle('paused-eq',!state.playing);
+  els.miniPlay.innerHTML=state.playing?SVG_PAUSE:SVG_PLAY;
+  els.miniPlay.setAttribute('aria-label',state.playing?'暂停':'播放');
+}
+
+/* ---------- 手机端:迷你条 ↔ 全屏播放页 ---------- */
+function openSheet(){
+  els.card.classList.add('open');
+  document.body.classList.add('sheet-open');
+}
+function closeSheet(){
+  els.card.classList.remove('open');
+  els.card.classList.remove('dragging');
+  els.card.style.transform='';
+  document.body.classList.remove('sheet-open');
+}
+function updateMini(){
+  const t=state.tracks[state.current]||null;
+  if(!t){els.miniBar.classList.remove('show');return}
+  els.miniBar.classList.add('show');
+  els.miniCover.innerHTML=coverHTML(t,true);
+  els.miniTitle.textContent=t.title;
+  els.miniArtist.textContent=t.artist;
+}
+/* 播放页下滑手势:按住头部或封面往下拖,超过阈值收起 */
+let swipe=null;
+function swipeStart(e){
+  if(!els.card.classList.contains('open')||window.innerWidth>860)return;
+  swipe={y:e.clientY,dy:0,id:e.pointerId};
+  els.card.classList.add('dragging');
+  try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_){}
+}
+function swipeMove(e){
+  if(!swipe||e.pointerId!==swipe.id)return;
+  swipe.dy=Math.max(0,e.clientY-swipe.y);
+  els.card.style.transform='translateY('+swipe.dy+'px)';
+}
+function swipeEnd(e){
+  if(!swipe||e.pointerId!==swipe.id)return;
+  const shouldClose=swipe.dy>110;
+  els.card.classList.remove('dragging');
+  els.card.style.transform='';
+  swipe=null;
+  if(shouldClose)closeSheet();
+}
+[els.sheetHead,els.coverWrap||els.card.querySelector('.cover-wrap')].forEach(el=>{
+  el.addEventListener('pointerdown',swipeStart);
+});
+window.addEventListener('pointermove',swipeMove);
+window.addEventListener('pointerup',swipeEnd);
+window.addEventListener('pointercancel',swipeEnd);
+els.collapse.addEventListener('click',closeSheet);
+els.miniInfo.addEventListener('click',openSheet);
+els.miniPlay.addEventListener('click',playToggle);
+els.miniNext.addEventListener('click',next);
+window.addEventListener('resize',()=>{if(window.innerWidth>860)closeSheet()});
+
+/* ---------- 播放控制 ---------- */
+function tryPlay(){audio.play().catch(()=>toast('已加入列表,点击播放按钮开始播放'))}
+function loadTrack(i,autoplay=true){
+  const t=state.tracks[i];if(!t)return;
+  state.current=i;
+  audio.src=t.url;
+  els.title.textContent=t.title;
+  els.artist.textContent=t.artist;
+  updateCoverUI();
+  els.cur.textContent='0:00';
+  els.dur.textContent=t.duration!=null?fmt(t.duration):'0:00';
+  progress.set(0);
+  if(autoplay)tryPlay();else{state.playing=false;syncPlayUI();}
+  syncPlaylistCurrent();syncPlayUI();updateMini();
+  updateMediaSession(t);
+}
+function playToggle(){
+  if(state.current<0){
+    if(state.tracks.length)loadTrack(0,true);
+    else{els.importBtn.animate?null:0;toast('先导入音乐吧');}
+    return;
+  }
+  if(audio.paused)audio.play().catch(()=>{});else audio.pause();
+}
+function next(){if(state.tracks.length)loadTrack((state.current+1)%state.tracks.length,true)}
+function prev(){
+  if(state.current<0)return;
+  if(audio.currentTime>3){audio.currentTime=0;return}
+  loadTrack((state.current-1+state.tracks.length)%state.tracks.length,true);
+}
+function onEnded(){
+  if(state.mode==='one'){audio.currentTime=0;audio.play().catch(()=>{});return}
+  const n=state.current+1;
+  if(state.mode==='order'&&n>=state.tracks.length){
+    state.playing=false;syncPlayUI();
+    audio.currentTime=0;
+    return;
+  }
+  loadTrack(n%state.tracks.length,true);
+}
+function resetPlayer(){
+  state.current=-1;state.playing=false;
+  audio.pause();audio.removeAttribute('src');
+  els.title.textContent='未在播放';
+  els.artist.textContent='导入音乐开始使用';
+  els.cur.textContent='0:00';els.dur.textContent='0:00';
+  updateCoverUI();syncPlayUI();updateMini();progress.set(0);
+}
+
+/* ---------- 导入 ---------- */
+async function addFiles(fileList){
+  const files=[...fileList].filter(f=>
+    f.type.startsWith('audio/')||/\.(mp3|m4a|aac|wav|flac|ogg|opus|wma|ape|aiff?)$/i.test(f.name));
+  if(!files.length){toast('没有可识别的音频文件');return}
+  const exist=new Set(state.tracks.map(t=>t.key));
+  let added=0,firstNew=-1;
+  for(const f of files){
+    const key=f.name+'|'+f.size+'|'+f.lastModified;
+    if(exist.has(key))continue;
+    exist.add(key);
+    const meta=await parseID3(f);
+    const fb=nameFallback(f.name);
+    state.tracks.push({
+      key,file:f,url:URL.createObjectURL(f),
+      title:meta.title||fb.title,artist:meta.artist||fb.artist,
+      coverUrl:meta.cover,duration:null,
+      grad:Math.abs(hashStr(key))%GRADS.length,
+    });
+    probeDuration(state.tracks[state.tracks.length-1]);
+    if(firstNew<0)firstNew=state.tracks.length-1;
+    added++;
+  }
+  if(added){
+    renderPlaylist();
+    toast(`已添加 ${added} 首音乐`);
+    if(state.current<0&&firstNew>=0)loadTrack(firstNew,true);
+  }else toast('这些音乐已在列表中');
+}
+function removeTrack(i){
+  const t=state.tracks[i];if(!t)return;
+  URL.revokeObjectURL(t.url);
+  if(t.coverUrl)URL.revokeObjectURL(t.coverUrl);
+  state.tracks.splice(i,1);
+  if(i<state.current){state.current--;syncPlaylistCurrent();}
+  else if(i===state.current){
+    if(state.tracks.length){
+      const ni=Math.min(state.current,state.tracks.length-1);
+      loadTrack(ni,state.playing);
+    }else resetPlayer();
+  }
+  renderPlaylist();
+}
+
+/* ---------- 事件绑定 ---------- */
+els.importBtn.addEventListener('click',()=>els.fileInput.click());
+els.fileInput.addEventListener('change',e=>{addFiles(e.target.files);e.target.value='';});
+els.play.addEventListener('click',playToggle);
+els.prev.addEventListener('click',prev);
+els.next.addEventListener('click',next);
+els.list.addEventListener('click',e=>{
+  const rm=e.target.closest('.pl-x');
+  if(rm){e.stopPropagation();removeTrack(+rm.dataset.rm);return}
+  const li=e.target.closest('.pl-item');
+  if(li)loadTrack(+li.dataset.idx,true);
+});
+
+/* 播放模式 */
+const MODE_META={order:{ico:ICONS.order,cls:'dim',label:'顺序播放'},
+                 loop:{ico:ICONS.loop,cls:'',label:'列表循环'},
+                 one:{ico:ICONS.one+'<i class="one-badge">1</i>',cls:'',label:'单曲循环'}};
+function applyMode(){
+  const m=MODE_META[state.mode];
+  els.mode.innerHTML=m.ico;
+  els.mode.classList.toggle('dim',!!m.cls);
+  els.mode.title=m.label;
+}
+els.mode.addEventListener('click',()=>{
+  state.mode=state.mode==='order'?'loop':state.mode==='loop'?'one':'order';
+  applyMode();toast(MODE_META[state.mode].label);
+});
+
+/* 进度条 */
+const progress=makeSlider($('#progressSlider'),{
+  onInput(v){
+    state.seeking=true;
+    const d=audio.duration;
+    if(isFinite(d))els.cur.textContent=fmt(v*d);
+  },
+  onCommit(v){
+    if(isFinite(audio.duration))audio.currentTime=v*audio.duration;
+    state.seeking=false;
+  },
+});
+
+/* 清空(两段式确认) */
+let clearArm=null;
+els.clear.addEventListener('click',()=>{
+  if(clearArm){
+    clearTimeout(clearArm);clearArm=null;
+    state.tracks.forEach(t=>{URL.revokeObjectURL(t.url);if(t.coverUrl)URL.revokeObjectURL(t.coverUrl)});
+    state.tracks=[];resetPlayer();renderPlaylist();
+    els.clear.textContent='清空';els.clear.classList.remove('warn');
+    return;
+  }
+  els.clear.textContent='确认清空?';els.clear.classList.add('warn');
+  clearArm=setTimeout(()=>{clearArm=null;els.clear.textContent='清空';els.clear.classList.remove('warn')},3000);
+});
+
+/* 音频事件 */
+let errStreak=0;
+audio.addEventListener('play',()=>{errStreak=0;state.playing=true;syncPlayUI();syncPlaylistCurrent()});
+audio.addEventListener('pause',()=>{state.playing=false;syncPlayUI();syncPlaylistCurrent()});
+audio.addEventListener('ended',onEnded);
+audio.addEventListener('timeupdate',()=>{
+  if(state.seeking)return;
+  progress.set(isFinite(audio.duration)&&audio.duration>0?audio.currentTime/audio.duration:0);
+  els.cur.textContent=fmt(audio.currentTime);
+});
+audio.addEventListener('loadedmetadata',()=>{
+  const t=state.tracks[state.current];
+  if(t){t.duration=audio.duration;els.dur.textContent=fmt(audio.duration);renderPlaylist();}
+});
+audio.addEventListener('error',()=>{
+  if(state.current<0||!audio.currentSrc)return;
+  errStreak++;
+  if(errStreak>state.tracks.length){ // 全部失败则停下,避免循环报错
+    errStreak=0;state.playing=false;syncPlayUI();syncPlaylistCurrent();
+    toast('这些文件都无法播放');
+    return;
+  }
+  toast('该文件无法播放,已跳到下一首');
+  if(state.tracks.length>1)loadTrack((state.current+1)%state.tracks.length,true);
+  else{state.playing=false;syncPlayUI();}
+});
+
+/* 键盘 */
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea,button'))return;
+  if(e.code==='Space'){e.preventDefault();playToggle();}
+  else if(e.code==='Escape'&&els.card.classList.contains('open'))closeSheet();
+  else if(e.code==='ArrowRight'&&state.current>=0&&isFinite(audio.duration))
+    audio.currentTime=Math.min(audio.duration,audio.currentTime+5);
+  else if(e.code==='ArrowLeft'&&state.current>=0)
+    audio.currentTime=Math.max(0,audio.currentTime-5);
+});
+
+/* 拖拽导入 */
+let dragDepth=0;
+window.addEventListener('dragenter',e=>{
+  e.preventDefault();
+  if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files')){
+    dragDepth++;els.drop.classList.add('on');
+  }
+});
+window.addEventListener('dragover',e=>e.preventDefault());
+window.addEventListener('dragleave',()=>{
+  if(--dragDepth<=0){dragDepth=0;els.drop.classList.remove('on');}
+});
+window.addEventListener('drop',e=>{
+  e.preventDefault();dragDepth=0;els.drop.classList.remove('on');
+  if(e.dataTransfer&&e.dataTransfer.files.length)addFiles(e.dataTransfer.files);
+});
+
+/* 系统媒体会话(锁屏/控制中心) */
+function updateMediaSession(t){
+  if(!('mediaSession'in navigator))return;
+  try{
+    navigator.mediaSession.metadata=new MediaMetadata({
+      title:t.title,artist:t.artist,
+      artwork:t.coverUrl?[{src:t.coverUrl}]:[],
+    });
+    navigator.mediaSession.setActionHandler('previoustrack',prev);
+    navigator.mediaSession.setActionHandler('nexttrack',next);
+  }catch(_){}
+}
+
+/* 初始化 */
+els.prev.innerHTML=ICONS.prev;
+els.next.innerHTML=ICONS.next;
+els.collapse.innerHTML=ICONS.chevD;
+els.miniNext.innerHTML=ICONS.next;
+applyMode();
+renderPlaylist();
+updateCoverUI();
+syncPlayUI();
+</script>
+</body>
+</html>
